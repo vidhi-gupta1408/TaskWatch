@@ -1,0 +1,193 @@
+Task: Store Monitoring Backend Application
+Objective
+The goal is to build a complete backend application in Python that monitors restaurant uptime and downtime. The solution must be robust, well-structured, and demonstrate strong problem-solving skills, including data handling, API design, and complex business logic. The final output should be a complete, runnable, and production-ready codebase.
+
+Technology Stack
+Language: Python 3.x
+
+Framework: Flask or FastAPI for the API endpoints.
+
+Database: SQLite for local development and demonstration.
+
+ORM: SQLAlchemy for database management.
+
+Background Tasks: Celery with Redis as the message broker. This is mandatory to implement the trigger-and-poll architecture.
+
+Data Processing: Pandas for handling CSV files.
+
+Timezones: pytz for accurate timezone conversions.
+
+System Architecture
+The system will follow a trigger-and-poll architecture:
+
+A POST request to /trigger_report initiates a background task.
+
+The background task generates a comprehensive report.
+
+A GET request to /get_report with a report_id polls for the report's status.
+
+Once the report is complete, the GET endpoint serves the final CSV file.
+
+Project Structure
+The code must be organized into a logical directory structure to ensure modularity and maintainability.
+
+/root_directory
+├── app/
+│   ├── __init__.py           # Flask/FastAPI app and Celery instance initialization
+│   ├── api/
+│   │   └── reports.py        # API endpoints
+│   ├── core/
+│   │   ├── reporter.py       # Core business logic and background task
+│   │   └── data_loader.py    # CSV data ingestion script
+│   ├── models/
+│   │   └── db_models.py      # SQLAlchemy database models
+│   ├── utils/
+│   │   └── time_helpers.py   # Timezone conversion helpers
+│   ├── database/
+│   │   └── db.sqlite         # SQLite database file
+│   └── templates/
+├── data/
+│   ├── menu_hours.csv
+│   ├── store_status.csv
+│   └── timezone.csv
+├── .env                      # Environment variables for configuration
+├── requirements.txt          # Project dependencies
+└── run.py                    # Script to run the application
+
+Data and Database Schema
+The provided data will be loaded into an SQLite database. You must define the following SQLAlchemy models:
+
+StoreStatus:
+
+id (Primary Key, Integer)
+
+store_id (Integer)
+
+timestamp_utc (DateTime)
+
+status (String: 'active' or 'inactive')
+
+BusinessHours:
+
+id (Primary Key, Integer)
+
+store_id (Integer)
+
+dayOfWeek (Integer, 0=Monday, 6=Sunday)
+
+start_time_local (Time)
+
+end_time_local (Time)
+
+Timezone:
+
+id (Primary Key, Integer)
+
+store_id (Integer)
+
+timezone_str (String)
+
+Report:
+
+id (Primary Key, Integer)
+
+report_id (String, unique)
+
+status (String: 'Running' or 'Complete')
+
+report_path (String, nullable)
+
+API Endpoints
+1. POST /trigger_report
+Description: Triggers the report generation process as a background task.
+
+Input: None.
+
+Output: A JSON object containing a unique report_id.
+
+Logic:
+
+Generate a UUID or similar unique string for report_id.
+
+Create a new entry in the Report table with status='Running'.
+
+Dispatch the report generation task to Celery, passing the report_id.
+
+Immediately return {"report_id": "..."}.
+
+2. GET /get_report/<report_id>
+Description: Polls for the status of a report.
+
+Input: The report_id as a URL parameter.
+
+Output:
+
+If the report's status is 'Running', return {"status": "Running"}.
+
+If the report's status is 'Complete', return the generated CSV file.
+
+Core Business Logic (in core/reporter.py)
+This is the most critical part and must be handled inside the Celery task.
+
+Data Ingestion:
+
+First, write a script to ingest the three CSVs into the SQLite database. This should be run on startup or triggered by a separate script.
+
+The ingestion logic should be idempotent.
+
+Current Timestamp: The current timestamp for all calculations must be the maximum timestamp_utc found in the store_status data.
+
+Data Extrapolation/Interpolation:
+
+For a given store and a given time interval, use the available data points to estimate uptime/downtime.
+
+The "sane interpolation logic" is as follows: The status observed at a specific timestamp is assumed to be valid from that timestamp until the next observed timestamp.
+
+For the period before the first observation of a day and after the last observation of a day, the status is assumed to be the same as the first and last observation, respectively.
+
+Uptime/Downtime Calculation:
+
+Filter by Business Hours: All uptime and downtime calculations must only include time intervals that fall within the store's business hours.
+
+Timezone Conversion: Use pytz to correctly convert timestamp_utc to the store's local time for comparison with start_time_local and end_time_local.
+
+Handle Missing Data:
+
+If menu_hours.csv lacks data for a store_id, assume the store is open 24 hours a day, 7 days a week.
+
+If timezone.csv lacks data for a store_id, assume the timezone is America/Chicago.
+
+Calculate Metrics for each store:
+
+uptime_last_hour (in minutes)
+
+uptime_last_day (in hours)
+
+uptime_last_week (in hours)
+
+downtime_last_hour (in minutes)
+
+downtime_last_day (in hours)
+
+downtime_last_week (in hours)
+
+Output Requirements
+The final report must be a CSV file with the following exact schema:
+
+store_id,uptime_last_hour,uptime_last_day,uptime_last_week,downtime_last_hour,downtime_last_day,downtime_last_week
+
+Security and Best Practices
+Dependency Management: Use a requirements.txt file to list all dependencies.
+
+Virtual Environment: The project must be run inside a Python virtual environment.
+
+Configuration: All sensitive information (e.g., Redis URL) should be managed using environment variables loaded via python-dotenv. No hardcoded secrets.
+
+Error Handling: Use try...except blocks to handle potential errors gracefully (e.g., database connection failures, file read errors, invalid report IDs).
+
+Code Quality: The code must be well-commented to explain the logic, especially the complex uptime/downtime calculation. Use Python type hints throughout the codebase. Use an ORM (SQLAlchemy) to prevent SQL injection vulnerabilities.
+
+Scalability: The use of Celery and a modular design should show that the solution is scalable.
+
+Final Submission Requirements
+The final deliverable should be a complete, runnable codebase that adheres to all the above specifications. It should also include a detailed README.md and a separate file containing a sample CSV output.

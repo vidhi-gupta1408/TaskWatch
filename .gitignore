@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environment
+venv/
+ENV/
+env/
+.venv/
+
+# Environment variables
+.env
+*.env
+
+# Database files
+*.sqlite3
+*.db
+instance/
+*.sqlite
+
+# Flask cache and logs
+*.log
+
+# VS Code settings
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Pytest cache
+.pytest_cache/
+
+# Migrations (if using Flask-Migrate)
+migrations/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# CSV data files
+*.csv
+data/

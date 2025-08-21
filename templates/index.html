@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Store Monitoring System</title>
+    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <!-- Header -->
+                <div class="text-center mb-5">
+                    <h1 class="display-4 mb-3">
+                        <i class="fas fa-store text-primary me-3"></i>
+                        Store Monitoring System
+                    </h1>
+                    <p class="lead text-muted">
+                        Generate comprehensive uptime and downtime reports for restaurant stores
+                    </p>
+                </div>
+
+                <!-- API Testing Interface -->
+                <div class="row">
+                    <!-- Generate Report Card -->
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-play-circle text-success me-2"></i>
+                                    Generate Report
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">
+                                    Trigger a new background report generation task. This will analyze store status data and calculate uptime/downtime metrics.
+                                </p>
+                                <button id="generateBtn" class="btn btn-success w-100">
+                                    <i class="fas fa-cog me-2"></i>
+                                    Generate New Report
+                                </button>
+                                <div id="generateResult" class="mt-3"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Check Report Card -->
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-search text-info me-2"></i>
+                                    Check Report Status
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">
+                                    Check the status of a report and download the CSV file when it's ready.
+                                </p>
+                                <div class="input-group mb-3">
+                                    <input type="text" id="reportIdInput" class="form-control" 
+                                           placeholder="Enter Report ID">
+                                    <button id="checkBtn" class="btn btn-info">
+                                        <i class="fas fa-search me-2"></i>
+                                        Check Status
+                                    </button>
+                                </div>
+                                <div id="checkResult" class="mt-3"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Reports -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-history text-warning me-2"></i>
+                            Recent Reports
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <button id="refreshReportsBtn" class="btn btn-outline-secondary mb-3">
+                            <i class="fas fa-refresh me-2"></i>
+                            Refresh Reports
+                        </button>
+                        <div id="reportsTable" class="table-responsive">
+                            <p class="text-muted">Click "Refresh Reports" to load recent reports</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Information -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-info-circle text-primary me-2"></i>
+                            System Information
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <h6><i class="fas fa-database me-2"></i>Database</h6>
+                                <p class="text-muted">SQLite with SQLAlchemy ORM</p>
+                            </div>
+                            <div class="col-md-4">
+                                <h6><i class="fas fa-tasks me-2"></i>Background Tasks</h6>
+                                <p class="text-muted">Celery with Redis broker</p>
+                            </div>
+                            <div class="col-md-4">
+                                <h6><i class="fas fa-clock me-2"></i>Timezone Support</h6>
+                                <p class="text-muted">pytz for accurate conversions</p>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-chart-line me-2"></i>Report Metrics</h6>
+                                <ul class="list-unstyled text-muted">
+                                    <li>• Uptime/Downtime last hour (minutes)</li>
+                                    <li>• Uptime/Downtime last day (hours)</li>
+                                    <li>• Uptime/Downtime last week (hours)</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-cogs me-2"></i>API Endpoints</h6>
+                                <ul class="list-unstyled text-muted">
+                                    <li>• POST /trigger_report</li>
+                                    <li>• GET /get_report/&lt;report_id&gt;</li>
+                                    <li>• GET /reports</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Generate Report
+        document.getElementById('generateBtn').addEventListener('click', async function() {
+            const btn = this;
+            const resultDiv = document.getElementById('generateResult');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generating...';
+            resultDiv.innerHTML = '';
+            
+            try {
+                const response = await fetch('/trigger_report', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle me-2"></i>
+                            Report generation started!<br>
+                            <strong>Report ID:</strong> <code class="report-id-copy" data-report-id="${data.report_id}">${data.report_id}</code>
+                            <button class="btn btn-sm btn-outline-success ms-2 copy-btn" data-report-id="${data.report_id}">
+                                <i class="fas fa-copy"></i> Copy
+                            </button>
+                        </div>
+                    `;
+                    
+                    // Auto-fill the report ID input
+                    document.getElementById('reportIdInput').value = data.report_id;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Error: ${data.message || 'Failed to generate report'}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Network error: ${error.message}
+                    </div>
+                `;
+            }
+            
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-cog me-2"></i>Generate New Report';
+        });
+
+        // Check Report Status
+        document.getElementById('checkBtn').addEventListener('click', async function() {
+            const btn = this;
+            const resultDiv = document.getElementById('checkResult');
+            const reportId = document.getElementById('reportIdInput').value.trim();
+            
+            if (!reportId) {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Please enter a Report ID
+                    </div>
+                `;
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Checking...';
+            resultDiv.innerHTML = '';
+            
+            try {
+                const response = await fetch(`/get_report/${reportId}`);
+                
+                if (response.ok) {
+                    const contentType = response.headers.get('content-type');
+                    
+                    if (contentType && contentType.includes('application/json')) {
+                        // Status response
+                        const data = await response.json();
+                        
+                        if (data.status === 'Running') {
+                            resultDiv.innerHTML = `
+                                <div class="alert alert-info">
+                                    <i class="fas fa-clock me-2"></i>
+                                    Report is still being generated. Please check again in a few moments.
+                                </div>
+                            `;
+                        } else if (data.status === 'Failed') {
+                            resultDiv.innerHTML = `
+                                <div class="alert alert-danger">
+                                    <i class="fas fa-times-circle me-2"></i>
+                                    Report generation failed: ${data.message || 'Unknown error'}
+                                </div>
+                            `;
+                        }
+                    } else {
+                        // CSV file response
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `store_report_${reportId}.csv`;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+                        
+                        resultDiv.innerHTML = `
+                            <div class="alert alert-success">
+                                <i class="fas fa-download me-2"></i>
+                                Report downloaded successfully!
+                            </div>
+                        `;
+                    }
+                } else {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Error: ${data.message || 'Failed to retrieve report'}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Network error: ${error.message}
+                    </div>
+                `;
+            }
+            
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-search me-2"></i>Check Status';
+        });
+
+        // Refresh Reports
+        document.getElementById('refreshReportsBtn').addEventListener('click', async function() {
+            const btn = this;
+            const tableDiv = document.getElementById('reportsTable');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Loading...';
+            
+            try {
+                const response = await fetch('/reports');
+                const data = await response.json();
+                
+                if (response.ok && data.reports) {
+                    if (data.reports.length === 0) {
+                        tableDiv.innerHTML = '<p class="text-muted">No reports found</p>';
+                    } else {
+                        let tableHTML = `
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Report ID</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                        `;
+                        
+                        data.reports.forEach(report => {
+                            const statusBadge = report.status === 'Complete' ? 'success' : 
+                                               report.status === 'Running' ? 'info' : 'danger';
+                            
+                            tableHTML += `
+                                <tr>
+                                    <td><code>${report.report_id}</code></td>
+                                    <td><span class="badge bg-${statusBadge}">${report.status}</span></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-secondary copy-btn" data-report-id="${report.report_id}">
+                                            <i class="fas fa-copy"></i> Copy ID
+                                        </button>
+                                        ${report.status === 'Complete' ? 
+                                            `<button class="btn btn-sm btn-outline-success ms-2 download-btn" data-report-id="${report.report_id}">
+                                                <i class="fas fa-download"></i> Download
+                                            </button>` : ''}
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                        
+                        tableHTML += '</tbody></table>';
+                        tableDiv.innerHTML = tableHTML;
+                    }
+                } else {
+                    tableDiv.innerHTML = '<p class="text-danger">Failed to load reports</p>';
+                }
+            } catch (error) {
+                tableDiv.innerHTML = `<p class="text-danger">Error: ${error.message}</p>`;
+            }
+            
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-refresh me-2"></i>Refresh Reports';
+        });
+
+        // Copy Report ID functionality
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.copy-btn')) {
+                const reportId = e.target.closest('.copy-btn').dataset.reportId;
+                navigator.clipboard.writeText(reportId).then(() => {
+                    const btn = e.target.closest('.copy-btn');
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                    btn.classList.remove('btn-outline-success', 'btn-outline-secondary');
+                    btn.classList.add('btn-success');
+                    
+                    setTimeout(() => {
+                        btn.innerHTML = originalText;
+                        btn.classList.remove('btn-success');
+                        btn.classList.add('btn-outline-secondary');
+                    }, 2000);
+                    
+                    // Auto-fill the report ID input
+                    document.getElementById('reportIdInput').value = reportId;
+                });
+            }
+        });
+
+        // Download functionality
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.download-btn')) {
+                const reportId = e.target.closest('.download-btn').dataset.reportId;
+                window.location.href = `/get_report/${reportId}`;
+            }
+        });
+
+        // Auto-refresh running reports every 10 seconds
+        setInterval(async function() {
+            const reportIdInput = document.getElementById('reportIdInput');
+            const checkResult = document.getElementById('checkResult');
+            
+            if (reportIdInput.value && checkResult.innerHTML.includes('still being generated')) {
+                document.getElementById('checkBtn').click();
+            }
+        }, 10000);
+    </script>
+</body>
+</html>
