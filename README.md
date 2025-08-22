@@ -80,7 +80,3 @@ Place your CSV files in the `data/` directory:
 ├── main.py            # Application entry point
 └── setup_local.py     # Local setup script
 ```
-
-## License
-
-MIT License - see LICENSE file for details.
